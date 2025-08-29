@@ -102,7 +102,7 @@ int main(void)
   {
 
 	 HAL_GPIO_TogglePin(led_GPIO_Port, led_Pin);
-	 HAL_Delay(50);
+	 HAL_Delay(45);
 
 	 lcd_test();
 

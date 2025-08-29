@@ -46,11 +46,45 @@ public:
 			b &= ~(m >> (x & 7));
 		SetByte(x, y, b);
 	}
+	//ai code
+	uint16_t pixel_bit_index(uint16_t x, uint16_t y) {
+		return y * (Width * bpp  + 16 ) +  x * 3;
+	}
+
+	void setPixel(uint16_t x, uint16_t y, uint8_t rgb) {
+		if(x>=Width) return;
+		if(y>=Height) return;
+		uint16_t bitIndex = pixel_bit_index(x, y);
+		uint16_t byteIndex = bitIndex >> 3;
+		uint16_t bitOffset = bitIndex & 7;
+
+
+		uint16_t value = rgb<<8;
+
+		// Load 16 bits covering this pixel
+		uint16_t data = (pData[byteIndex]) <<8| (pData[byteIndex + 1] << 0);
+		//data = reverse_byte_hw2(data);
+
+		// Clear the 3 bits, then insert new value
+		data &= ~(0xe000 >> (bitOffset));
+		data |= (value >> (bitOffset));
+
+		// Store back
+		pData[byteIndex] = data >> 8;
+		pData[byteIndex + 1] = data & 0xFF;
+	}
+	void fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t rgb) {
+
+		for (int j = 0; j < h; j++)
+			for (int i = 0; i < w; i++)
+				setPixel(x + i, y + j, rgb);
+	}
 
 };
 
 template<uint16_t Width, uint16_t Height, uint8_t bpp>
 class TMemoryDisplay {
+public:
 	TFrameBuff<Width, Height, bpp> fb;
 	uint8_t com_inv;
 	uint8_t com_inv_cnt;
@@ -78,17 +112,17 @@ class TMemoryDisplay {
 		return __RBIT(b) >> 24;
 	}
 public:
-	void update_disp(void){
+	void update_disp(void) {
 
-		if(spi_done){
-		spi_done = 0;
-		cominv();
-		fb.buff[0]= MLCD_WR | com_inv;
+		if (spi_done) {
+			spi_done = 0;
+			cominv();
+			fb.buff[0] = MLCD_WR | com_inv;
 
-		scs(1);
-		HAL_Delay(1);
+			scs(1);
+			HAL_Delay(1);
 
-		HAL_SPI_Transmit_DMA(&hspi2,fb.buff, fb.bits/8);
+			HAL_SPI_Transmit_DMA(&hspi2, fb.buff, fb.bits / 8);
 		}
 	}
 
@@ -101,11 +135,10 @@ public:
 		}
 	}
 
-
-	void spi_tx_callback(){
-			spi_done = 1;
-			scs(0);
-		}
+	void spi_tx_callback() {
+		spi_done = 1;
+		scs(0);
+	}
 
 	static void disp_on(uint8_t on) {
 		HAL_GPIO_WritePin(DISP_GPIO_Port, DISP_Pin, (GPIO_PinState) on);
