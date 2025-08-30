@@ -125,6 +125,18 @@ public:
 			HAL_SPI_Transmit_DMA(&hspi2, fb.buff, fb.bits / 8);
 		}
 	}
+	void update_vcom(void) {
+
+			if (spi_done) {
+
+				cominv();
+				fb.buff[0] = 0 | com_inv;
+				scs(1);
+				HAL_Delay(1);
+
+				HAL_SPI_Transmit(&hspi2, fb.buff, 2,10);
+			}
+		}
 
 	void set_pattern(uint8_t pat) {
 		uint16_t y;

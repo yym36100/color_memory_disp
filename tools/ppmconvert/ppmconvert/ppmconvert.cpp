@@ -1,34 +1,49 @@
+﻿#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define WIDTH  128
-#define HEIGHT 128
-#define FRAMEBUFFER_SIZE ((WIDTH * HEIGHT * 3) / 8)
+#define WIDTH   128
+#define HEIGHT  128
+#define LINE_PIXELS  WIDTH
+#define LINE_BYTES  ((LINE_PIXELS * 3) / 8 + 2)   // 48 + 2 = 50 bytes
+#define FRAMEBUFFER_SIZE (HEIGHT * LINE_BYTES)    // 6400 bytes
 
 uint8_t framebuffer[FRAMEBUFFER_SIZE];
 
-// Convert 24-bit PPM RGB buffer into 3-bit framebuffer format
-// inData: pointer to raw RGB data (WIDTH*HEIGHT*3 bytes)
-// outData: pointer to framebuffer buffer (6144 bytes)
-void convertPPMtoFB(const uint8_t* inData, uint8_t* outData) {
-	int bitPos = 0;   // bit position in outData
+static uint8_t reverseBitOrder(uint8_t b) {
+	uint8_t temp = b;
+	temp = (temp & 0xF0) >> 4 | (temp & 0x0F) << 4;
+	temp = (temp & 0xCC) >> 2 | (temp & 0x33) << 2;
+	temp = (temp & 0xAA) >> 1 | (temp & 0x55) << 1;
+	return temp;
+}
+
+void convertPPMtoFB(const uint8_t* inData, uint8_t* outData) {	
 	for (int y = 0; y < HEIGHT; y++) {
+		int bitPos = 0;
+		int lineStart = y * LINE_BYTES;
+		outData[lineStart] = 0;
+		outData[lineStart+1] = reverseBitOrder(y+1);
+		lineStart += 2;
+
 		for (int x = 0; x < WIDTH; x++) {
 			int idx = (y * WIDTH + x) * 3;
 
-			// Extract each channel, threshold at 128
+			// threshold each channel
 			uint8_t r = (inData[idx + 0] > 127) ? 1 : 0;
 			uint8_t g = (inData[idx + 1] > 127) ? 1 : 0;
 			uint8_t b = (inData[idx + 2] > 127) ? 1 : 0;
 
-			uint8_t val = (r << 2) | (g << 1) | b; // order: r g b in MSB..LSB
+			uint8_t val = (r << 2) | (g << 1) | b;  // RGB 3-bit
 
-			// Insert into outData MSB-first
-			int byteIndex = bitPos >> 3;
-			int bitOffset = 7 - (bitPos & 7);  // MSB first
+			int byteIndex = lineStart + (bitPos >> 3);
+			int bitOffset = 7 - (bitPos & 7);  // MSB-first
 
-			for (int k = 2; k >= 0; k--) { // 3 bits per pixel
+			// write 3 bits
+			for (int k = 2; k >= 0; k--) {
 				int bit = (val >> k) & 1;
 				outData[byteIndex] &= ~(1 << bitOffset);
 				outData[byteIndex] |= (bit << bitOffset);
@@ -40,8 +55,11 @@ void convertPPMtoFB(const uint8_t* inData, uint8_t* outData) {
 				}
 			}
 		}
+
+		// leave the last 2 padding bytes untouched
 	}
 }
+
 
 // Example loader for binary PPM (P6 format, 24-bit RGB, no comments)
 uint8_t* loadPPM(const char* filename) {

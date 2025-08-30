@@ -3,6 +3,8 @@
 
 TMemoryDisplay<128, 128, 3> md;
 
+uint8_t fbd[6400+2];
+
 void lcd_test(void) {
 	static int state = 0;
 	static int pat=0x0;
@@ -28,7 +30,17 @@ void lcd_test(void) {
 		md.disp_on(0);
 		state++;
 	}
+	if(state == 5){
+		state++;
+		//restore c:\Users\yym\STM32CubeIDE\workspace_1.19.0\color_memory_disp\tools\ppmconvert\ppmconvert\framebuffer.bin binary &fbd
+		memcpy((void*)md.fb.buff,fbd,6402);
+		md.update_disp();
+	}
+	if(state == 6){
+		md.update_vcom();
+		HAL_Delay(100);
 
+	}
 }
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
